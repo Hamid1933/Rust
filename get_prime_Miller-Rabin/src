@@ -1,0 +1,75 @@
+use num_bigint::{BigUint, RandBigInt};
+use num_traits::{One, Zero};
+use rand::thread_rng;
+use std::fs::File;
+use std::io::Read;
+
+pub fn is_prime(n: &BigUint, k: u16) -> bool {
+    let zero = BigUint::zero();
+    let one = BigUint::one();
+    let two = BigUint::from(2u8);
+    let n_min_one = n - &one;
+    let n_min_two = n - &two;
+
+    if n < &two { return false }
+    if n == &two { return true }
+    if n == &BigUint::from(3u8) { return true }
+    if n % &two == zero { return false }
+
+    //Miller-Rabina
+    let mut rng = thread_rng();
+    let mut d = n_min_one.clone();
+    let mut r = 0;
+    while (&d & &one) == zero {
+        d >>= 1;
+        r += 1
+    }
+    for _ in 0..k {
+        let a: BigUint = rng.gen_biguint_range(&two, &n_min_two);
+        let mut x = a.modpow(&d, n);
+        if x == one || x == n_min_one { continue }
+        let mut composite = true;
+        for _ in 1..r {
+            x = x.modpow(&two, n);
+            if x == one { return false }
+            if &x == &n_min_one {
+                composite = false;
+                break;
+            }
+        }
+        if composite {
+            return false;
+        }
+    }
+    true
+}
+
+
+pub fn get_random(len: u16) -> std::io::Result<BigUint> {
+    let mut file = File::open("/dev/urandom")?;
+    let mut buf: Vec<u8> = vec![0u8;len.into()];
+    let _ = file.read_exact(&mut buf);
+    let num: String = buf.iter().map(|x| x.to_string()).collect();
+    let number = BigUint::parse_bytes(num.as_bytes(),10).unwrap();
+
+    Ok(number)
+}
+
+
+pub fn get_prime(len: u16) -> std::io::Result<BigUint>{
+    let mut file = File::open("/dev/urandom")?;
+    loop {
+        let mut buf: Vec<u8> = vec![0u8;len.into()];
+        let _ = file.read_exact(&mut buf);
+        let num: String = buf.iter().map(|x| x.to_string()).collect();
+        let number = BigUint::parse_bytes(num.as_bytes(),10).unwrap();
+        if is_prime(&number, 64u16) {
+            return Ok(number);
+        }
+    }
+}
+
+
+fn main() {
+    println!("{}",get_prime(256u16).unwrap());
+}
